@@ -143,7 +143,22 @@ function SubmitTransitionForm() {
         })
         .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase error:", error);
+
+        if (error.code === "PGRST116") {
+          throw new Error(
+            "The transitions table doesn't exist. Please check your database setup."
+          );
+        } else if (error.code === "23505") {
+          throw new Error("This transition already exists.");
+        } else {
+          throw new Error(
+            error.message ||
+              "An error occurred while submitting the transition."
+          );
+        }
+      }
 
       // Clear localStorage after successful submission
       localStorage.removeItem("first-track");
@@ -155,11 +170,12 @@ function SubmitTransitionForm() {
       });
 
       router.push("/browse");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error submitting transition:", error);
       toast({
         title: "Submission failed",
         description:
+          error.message ||
           "There was an error submitting your transition. Please try again.",
         variant: "destructive",
       });

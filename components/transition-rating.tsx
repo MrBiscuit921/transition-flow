@@ -1,10 +1,11 @@
+// components/transition-rating.tsx
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/use-toast"
-import { ThumbsDown, ThumbsUp } from "lucide-react"
+import { ThumbsDown, ThumbsUp } from 'lucide-react'
 import { useSupabase } from "@/components/supabase-provider"
 
 interface TransitionRatingProps {
@@ -25,6 +26,39 @@ export default function TransitionRating({ transitionId, initialRatings }: Trans
   const [userRating, setUserRating] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
+  // Fetch the user's existing rating when the component mounts
+  useEffect(() => {
+    async function fetchUserRating() {
+      if (!session) return;
+      
+      try {
+        console.log("Fetching user rating for transition:", transitionId);
+        
+        // Use a simpler query approach
+        const { data, error } = await supabase
+          .from("ratings")
+          .select("*")
+          .eq("user_id", session.user.id)
+          .eq("transition_id", transitionId);
+        
+        console.log("Rating data:", data);
+        console.log("Rating error:", error);
+        
+        if (error) {
+          throw error;
+        }
+        
+        if (data && data.length > 0) {
+          setUserRating(data[0].rating);
+        }
+      } catch (error) {
+        console.error("Error fetching user rating:", error);
+      }
+    }
+    
+    fetchUserRating();
+  }, [session, transitionId, supabase]);
+
   const handleRating = async (rating: number) => {
     if (!session) {
       toast({
@@ -38,63 +72,119 @@ export default function TransitionRating({ transitionId, initialRatings }: Trans
     setIsLoading(true)
 
     try {
+      console.log("Handling rating:", rating);
+      
+      // Check if the user has already rated this transition
+      const { data: existingRatings, error: fetchError } = await supabase
+        .from("ratings")
+        .select("*")
+        .eq("user_id", session.user.id)
+        .eq("transition_id", transitionId);
+      
+      console.log("Existing ratings:", existingRatings);
+      console.log("Fetch error:", fetchError);
+      
+      if (fetchError) {
+        throw fetchError;
+      }
+      
+      const existingRating = existingRatings && existingRatings.length > 0 ? existingRatings[0] : null;
+
       // If user already rated the same way, remove their rating
       if (userRating === rating) {
-        await supabase.from("ratings").delete().eq("user_id", session.user.id).eq("transition_id", transitionId)
-
-        if (rating > 0) {
-          setUpvotes(upvotes - 1)
-        } else {
-          setDownvotes(downvotes - 1)
-        }
-
-        setUserRating(null)
-      }
-      // If user rated the opposite way, update their rating
-      else if (userRating !== null) {
-        await supabase
+        console.log("Removing existing rating");
+        
+        const { error: deleteError } = await supabase
           .from("ratings")
-          .update({ rating })
+          .delete()
           .eq("user_id", session.user.id)
-          .eq("transition_id", transitionId)
-
-        if (rating > 0) {
-          setUpvotes(upvotes + 1)
-          setDownvotes(downvotes - 1)
-        } else {
-          setUpvotes(upvotes - 1)
-          setDownvotes(downvotes + 1)
+          .eq("transition_id", transitionId);
+        
+        console.log("Delete error:", deleteError);
+        
+        if (deleteError) {
+          throw deleteError;
         }
 
-        setUserRating(rating)
+        if (rating > 0) {
+          setUpvotes(upvotes - 1);
+        } else {
+          setDownvotes(downvotes - 1);
+        }
+
+        setUserRating(null);
       }
-      // If user hasn't rated yet, insert new rating
+      // If user rated the opposite way or hasn't rated yet
       else {
-        await supabase.from("ratings").insert({
-          user_id: session.user.id,
-          transition_id: transitionId,
-          rating,
-        })
+        if (existingRating) {
+          console.log("Updating existing rating");
+          
+          // Update existing rating
+          const { error: updateError } = await supabase
+            .from("ratings")
+            .update({ rating })
+            .eq("id", existingRating.id);
+          
+          console.log("Update error:", updateError);
+          
+          if (updateError) {
+            throw updateError;
+          }
 
-        if (rating > 0) {
-          setUpvotes(upvotes + 1)
+          // Update counts
+          if (existingRating.rating > 0 && rating < 0) {
+            // Changed from upvote to downvote
+            setUpvotes(upvotes - 1);
+            setDownvotes(downvotes + 1);
+          } else if (existingRating.rating < 0 && rating > 0) {
+            // Changed from downvote to upvote
+            setUpvotes(upvotes + 1);
+            setDownvotes(downvotes - 1);
+          }
         } else {
-          setDownvotes(downvotes + 1)
+          console.log("Inserting new rating");
+          
+          // Insert new rating
+          const { error: insertError } = await supabase
+            .from("ratings")
+            .insert({
+              user_id: session.user.id,
+              transition_id: transitionId,
+              rating,
+            });
+          
+          console.log("Insert error:", insertError);
+          
+          if (insertError) {
+            throw insertError;
+          }
+
+          // Update counts
+          if (rating > 0) {
+            setUpvotes(upvotes + 1);
+          } else {
+            setDownvotes(downvotes + 1);
+          }
         }
 
-        setUserRating(rating)
+        setUserRating(rating);
       }
+      
+      toast({
+        title: "Rating submitted",
+        description: "Your rating has been saved successfully",
+      });
     } catch (error) {
-      console.error("Error rating transition:", error)
+      console.error("Error rating transition:", error);
       toast({
         title: "Rating failed",
         description: "There was an error submitting your rating. Please try again.",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <div className="flex items-center gap-2">
@@ -121,4 +211,3 @@ export default function TransitionRating({ transitionId, initialRatings }: Trans
     </div>
   )
 }
-

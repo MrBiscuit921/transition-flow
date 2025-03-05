@@ -1,29 +1,42 @@
+// components/transitions-list.tsx
 import Link from "next/link"
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs"
 import { cookies } from "next/headers"
 import { formatDistanceToNow } from "date-fns"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ThumbsDown, ThumbsUp } from "lucide-react"
+import { ThumbsDown, ThumbsUp } from 'lucide-react'
 
 export default async function TransitionsList() {
   const supabase = createServerComponentClient({ cookies })
 
-  // Fetch transitions
+  // Fetch transitions without trying to join with users
   const { data: transitions, error } = await supabase
     .from("transitions")
     .select(`
       *,
-      users (
-        username
-      ),
       ratings (
+        id,
         rating
       )
     `)
     .order("created_at", { ascending: false })
 
-  if (error || !transitions || transitions.length === 0) {
+  console.log("Error:", error)
+
+  if (error) {
+    console.error("Error fetching transitions:", error)
+    return (
+      <div className="text-center py-12">
+        <p className="text-muted-foreground">Error loading transitions. Please try again later.</p>
+        <pre className="mt-4 p-4 bg-muted rounded text-xs overflow-auto">
+          {JSON.stringify(error, null, 2)}
+        </pre>
+      </div>
+    )
+  }
+
+  if (!transitions || transitions.length === 0) {
     return (
       <div className="text-center py-12">
         <p className="text-muted-foreground">No transitions found. Be the first to submit one!</p>
@@ -38,8 +51,7 @@ export default async function TransitionsList() {
         const ratings = transition.ratings || []
         const upvotes = ratings.filter((r: any) => r.rating > 0).length
         const downvotes = ratings.filter((r: any) => r.rating < 0).length
-        const score = upvotes - downvotes
-
+        
         return (
           <Link key={transition.id} href={`/transitions/${transition.id}`}>
             <Card className="overflow-hidden transition-all hover:shadow-md">
@@ -80,8 +92,7 @@ export default async function TransitionsList() {
                       <div className="flex flex-wrap items-center gap-2 text-sm">
                         <Badge variant="outline">{transition.crossfade_length}s crossfade</Badge>
                         <span className="text-xs text-muted-foreground">
-                          Added by {transition.users?.username || "Anonymous"}{" "}
-                          {formatDistanceToNow(new Date(transition.created_at), { addSuffix: true })}
+                          Added {formatDistanceToNow(new Date(transition.created_at), { addSuffix: true })}
                         </span>
                       </div>
                     </div>
@@ -106,4 +117,3 @@ export default async function TransitionsList() {
     </div>
   )
 }
-
