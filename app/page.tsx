@@ -3,6 +3,9 @@ import Link from "next/link";
 import {ArrowRight, Music, Star, Users} from "lucide-react";
 import FeaturedTransitions from "@/components/featured-transitions";
 
+export const dynamic = "force-dynamic";
+
+
 export default function Home() {
   return (
     <div className="flex flex-col gap-12 pb-8">
