@@ -1,5 +1,6 @@
 // app/settings/page.tsx
 "use client"
+export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
@@ -24,13 +25,13 @@ export default function SettingsPage() {
   useEffect(() => {
     // Redirect if not logged in
     if (!session) {
-      router.push("/login")
-      return
+      router.push("/login");
+      return;
     }
     
     // Set initial values
-    setUsername(session.user.user_metadata?.username || "")
-  }, [session, router])
+    setUsername(session.user?.user_metadata?.username || "");
+  }, [session, router]);
   
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault()

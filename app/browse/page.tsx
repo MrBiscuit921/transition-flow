@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { Suspense } from "react"
 import TransitionsList from "@/components/transitions-list"
 import TransitionsFilter from "@/components/transitions-filter"

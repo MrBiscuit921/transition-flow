@@ -1,53 +1,56 @@
 // components/transition-rating.tsx
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
-import { Button } from "@/components/ui/button"
-import { useToast } from "@/components/ui/use-toast"
-import { ThumbsDown, ThumbsUp } from 'lucide-react'
-import { useSupabase } from "@/components/supabase-provider"
+import {useState, useEffect} from "react";
+import {createClientComponentClient} from "@supabase/auth-helpers-nextjs";
+import {Button} from "@/components/ui/button";
+import {useToast} from "@/components/ui/use-toast";
+import {ThumbsDown, ThumbsUp} from "lucide-react";
+import {useSupabase} from "@/components/supabase-provider";
 
 interface TransitionRatingProps {
-  transitionId: string
+  transitionId: string;
   initialRatings: {
-    upvotes: number
-    downvotes: number
-  }
+    upvotes: number;
+    downvotes: number;
+  };
 }
 
-export default function TransitionRating({ transitionId, initialRatings }: TransitionRatingProps) {
-  const { session } = useSupabase()
-  const supabase = createClientComponentClient()
-  const { toast } = useToast()
+export default function TransitionRating({
+  transitionId,
+  initialRatings,
+}: TransitionRatingProps) {
+  const {session} = useSupabase();
+  const supabase = createClientComponentClient();
+  const {toast} = useToast();
 
-  const [upvotes, setUpvotes] = useState(initialRatings.upvotes)
-  const [downvotes, setDownvotes] = useState(initialRatings.downvotes)
-  const [userRating, setUserRating] = useState<number | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [upvotes, setUpvotes] = useState(initialRatings.upvotes);
+  const [downvotes, setDownvotes] = useState(initialRatings.downvotes);
+  const [userRating, setUserRating] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Fetch the user's existing rating when the component mounts
   useEffect(() => {
     async function fetchUserRating() {
       if (!session) return;
-      
+
       try {
         console.log("Fetching user rating for transition:", transitionId);
-        
+
         // Use a simpler query approach
-        const { data, error } = await supabase
+        const {data, error} = await supabase
           .from("ratings")
           .select("*")
           .eq("user_id", session.user.id)
           .eq("transition_id", transitionId);
-        
+
         console.log("Rating data:", data);
         console.log("Rating error:", error);
-        
+
         if (error) {
           throw error;
         }
-        
+
         if (data && data.length > 0) {
           setUserRating(data[0].rating);
         }
@@ -55,7 +58,7 @@ export default function TransitionRating({ transitionId, initialRatings }: Trans
         console.error("Error fetching user rating:", error);
       }
     }
-    
+
     fetchUserRating();
   }, [session, transitionId, supabase]);
 
@@ -65,44 +68,45 @@ export default function TransitionRating({ transitionId, initialRatings }: Trans
         title: "Authentication required",
         description: "Please sign in to rate transitions",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
-    setIsLoading(true)
+    setIsLoading(true);
 
     try {
       console.log("Handling rating:", rating);
-      
+
       // Check if the user has already rated this transition
-      const { data: existingRatings, error: fetchError } = await supabase
+      const {data: existingRatings, error: fetchError} = await supabase
         .from("ratings")
         .select("*")
         .eq("user_id", session.user.id)
         .eq("transition_id", transitionId);
-      
+
       console.log("Existing ratings:", existingRatings);
-      console.log("Fetch error:", fetchError);
-      
       if (fetchError) {
+        console.log("Fetch error:", fetchError);
         throw fetchError;
       }
-      
-      const existingRating = existingRatings && existingRatings.length > 0 ? existingRatings[0] : null;
+
+      const existingRating =
+        existingRatings && existingRatings.length > 0
+          ? existingRatings[0]
+          : null;
 
       // If user already rated the same way, remove their rating
       if (userRating === rating) {
         console.log("Removing existing rating");
-        
-        const { error: deleteError } = await supabase
+
+        const {error: deleteError} = await supabase
           .from("ratings")
           .delete()
           .eq("user_id", session.user.id)
           .eq("transition_id", transitionId);
-        
-        console.log("Delete error:", deleteError);
-        
+
         if (deleteError) {
+          console.log("Delete error:", deleteError);
           throw deleteError;
         }
 
@@ -118,16 +122,15 @@ export default function TransitionRating({ transitionId, initialRatings }: Trans
       else {
         if (existingRating) {
           console.log("Updating existing rating");
-          
+
           // Update existing rating
-          const { error: updateError } = await supabase
+          const {error: updateError} = await supabase
             .from("ratings")
-            .update({ rating })
+            .update({rating})
             .eq("id", existingRating.id);
-          
-          console.log("Update error:", updateError);
-          
+
           if (updateError) {
+            console.log("Update error:", updateError);
             throw updateError;
           }
 
@@ -143,19 +146,16 @@ export default function TransitionRating({ transitionId, initialRatings }: Trans
           }
         } else {
           console.log("Inserting new rating");
-          
+
           // Insert new rating
-          const { error: insertError } = await supabase
-            .from("ratings")
-            .insert({
-              user_id: session.user.id,
-              transition_id: transitionId,
-              rating,
-            });
-          
-          console.log("Insert error:", insertError);
-          
+          const {error: insertError} = await supabase.from("ratings").insert({
+            user_id: session.user.id,
+            transition_id: transitionId,
+            rating,
+          });
+
           if (insertError) {
+            console.log("Insert error:", insertError);
             throw insertError;
           }
 
@@ -169,7 +169,7 @@ export default function TransitionRating({ transitionId, initialRatings }: Trans
 
         setUserRating(rating);
       }
-      
+
       toast({
         title: "Rating submitted",
         description: "Your rating has been saved successfully",
@@ -178,7 +178,8 @@ export default function TransitionRating({ transitionId, initialRatings }: Trans
       console.error("Error rating transition:", error);
       toast({
         title: "Rating failed",
-        description: "There was an error submitting your rating. Please try again.",
+        description:
+          "There was an error submitting your rating. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -193,8 +194,7 @@ export default function TransitionRating({ transitionId, initialRatings }: Trans
         size="sm"
         className="gap-1"
         disabled={isLoading}
-        onClick={() => handleRating(1)}
-      >
+        onClick={() => handleRating(1)}>
         <ThumbsUp className="h-4 w-4" />
         <span>{upvotes}</span>
       </Button>
@@ -203,11 +203,10 @@ export default function TransitionRating({ transitionId, initialRatings }: Trans
         size="sm"
         className="gap-1"
         disabled={isLoading}
-        onClick={() => handleRating(-1)}
-      >
+        onClick={() => handleRating(-1)}>
         <ThumbsDown className="h-4 w-4" />
         <span>{downvotes}</span>
       </Button>
     </div>
-  )
+  );
 }
