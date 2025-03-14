@@ -1,9 +1,7 @@
-export const dynamic = 'force-dynamic';
-
 import { Suspense } from "react"
-import TransitionsList from "@/components/transitions-list"
-import TransitionsFilter from "@/components/transitions-filter"
 import { Skeleton } from "@/components/ui/skeleton"
+import AdvancedSearch from "@/components/search/advanced-search"
+import TransitionsList from "@/components/transitions-list"
 
 export default function BrowsePage() {
   return (
@@ -14,7 +12,7 @@ export default function BrowsePage() {
           <p className="text-muted-foreground">Discover seamless transitions between your favorite songs</p>
         </div>
 
-        <TransitionsFilter />
+        <AdvancedSearch />
 
         <Suspense fallback={<TransitionsListSkeleton />}>
           <TransitionsList />

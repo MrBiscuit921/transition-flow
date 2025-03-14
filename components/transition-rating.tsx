@@ -1,16 +1,15 @@
-// components/transition-rating.tsx
 "use client";
 
 import {useState, useEffect} from "react";
-import {createClientComponentClient} from "@supabase/auth-helpers-nextjs";
 import {Button} from "@/components/ui/button";
 import {useToast} from "@/components/ui/use-toast";
-import {ThumbsDown, ThumbsUp} from "lucide-react";
 import {useSupabase} from "@/components/supabase-provider";
+import {ThumbsUp, ThumbsDown} from "lucide-react";
+import {createClientComponentClient} from "@supabase/auth-helpers-nextjs";
 
 interface TransitionRatingProps {
   transitionId: string;
-  initialRatings: {
+  initialRatings?: {
     upvotes: number;
     downvotes: number;
   };
@@ -20,50 +19,40 @@ export default function TransitionRating({
   transitionId,
   initialRatings,
 }: TransitionRatingProps) {
-  const {session} = useSupabase();
+  const {user} = useSupabase();
   const supabase = createClientComponentClient();
   const {toast} = useToast();
-
-  const [upvotes, setUpvotes] = useState(initialRatings.upvotes);
-  const [downvotes, setDownvotes] = useState(initialRatings.downvotes);
+  const [upvotes, setUpvotes] = useState(initialRatings?.upvotes || 0);
+  const [downvotes, setDownvotes] = useState(initialRatings?.downvotes || 0);
   const [userRating, setUserRating] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Fetch the user's existing rating when the component mounts
   useEffect(() => {
+    if (!user) return;
+
     async function fetchUserRating() {
-      if (!session) return;
+      if (!user?.id) return;
 
-      try {
-        console.log("Fetching user rating for transition:", transitionId);
+      const {data, error} = await supabase
+        .from("ratings")
+        .select("rating")
+        .eq("user_id", user.id)
+        .eq("transition_id", transitionId)
+        .single();
 
-        // Use a simpler query approach
-        const {data, error} = await supabase
-          .from("ratings")
-          .select("*")
-          .eq("user_id", session.user.id)
-          .eq("transition_id", transitionId);
-
-        console.log("Rating data:", data);
-        console.log("Rating error:", error);
-
-        if (error) {
-          throw error;
-        }
-
-        if (data && data.length > 0) {
-          setUserRating(data[0].rating);
-        }
-      } catch (error) {
+      if (error) {
         console.error("Error fetching user rating:", error);
+        return;
       }
+
+      setUserRating(data?.rating || null);
     }
 
     fetchUserRating();
-  }, [session, transitionId, supabase]);
+  }, [user, transitionId, supabase]);
 
   const handleRating = async (rating: number) => {
-    if (!session) {
+    if (!user?.id) {
       toast({
         title: "Authentication required",
         description: "Please sign in to rate transitions",
@@ -75,113 +64,59 @@ export default function TransitionRating({
     setIsLoading(true);
 
     try {
-      console.log("Handling rating:", rating);
-
-      // Check if the user has already rated this transition
-      const {data: existingRatings, error: fetchError} = await supabase
-        .from("ratings")
-        .select("*")
-        .eq("user_id", session.user.id)
-        .eq("transition_id", transitionId);
-
-      console.log("Existing ratings:", existingRatings);
-      if (fetchError) {
-        console.log("Fetch error:", fetchError);
-        throw fetchError;
+      // Optimistically update the UI
+      if (rating === 1) {
+        setUpvotes((prev) => prev + (userRating !== 1 ? 1 : 0));
+        setDownvotes((prev) => prev - (userRating === -1 ? 1 : 0));
+      } else if (rating === -1) {
+        setDownvotes((prev) => prev + (userRating !== -1 ? 1 : 0));
+        setUpvotes((prev) => prev - (userRating === 1 ? 1 : 0));
+      } else {
+        // Reset
+        if (userRating === 1) {
+          setUpvotes((prev) => prev - 1);
+        } else if (userRating === -1) {
+          setDownvotes((prev) => prev - 1);
+        }
       }
 
-      const existingRating =
-        existingRatings && existingRatings.length > 0
-          ? existingRatings[0]
-          : null;
+      setUserRating(userRating === rating ? null : rating);
 
-      // If user already rated the same way, remove their rating
-      if (userRating === rating) {
-        console.log("Removing existing rating");
+      const {error} = await supabase.from("ratings").upsert(
+        {
+          user_id: user.id,
+          transition_id: transitionId,
+          rating: userRating === rating ? 0 : rating,
+        },
+        {onConflict: "user_id, transition_id"}
+      );
 
-        const {error: deleteError} = await supabase
-          .from("ratings")
-          .delete()
-          .eq("user_id", session.user.id)
-          .eq("transition_id", transitionId);
-
-        if (deleteError) {
-          console.log("Delete error:", deleteError);
-          throw deleteError;
-        }
-
-        if (rating > 0) {
-          setUpvotes(upvotes - 1);
-        } else {
-          setDownvotes(downvotes - 1);
-        }
-
-        setUserRating(null);
-      }
-      // If user rated the opposite way or hasn't rated yet
-      else {
-        if (existingRating) {
-          console.log("Updating existing rating");
-
-          // Update existing rating
-          const {error: updateError} = await supabase
-            .from("ratings")
-            .update({rating})
-            .eq("id", existingRating.id);
-
-          if (updateError) {
-            console.log("Update error:", updateError);
-            throw updateError;
-          }
-
-          // Update counts
-          if (existingRating.rating > 0 && rating < 0) {
-            // Changed from upvote to downvote
-            setUpvotes(upvotes - 1);
-            setDownvotes(downvotes + 1);
-          } else if (existingRating.rating < 0 && rating > 0) {
-            // Changed from downvote to upvote
-            setUpvotes(upvotes + 1);
-            setDownvotes(downvotes - 1);
-          }
-        } else {
-          console.log("Inserting new rating");
-
-          // Insert new rating
-          const {error: insertError} = await supabase.from("ratings").insert({
-            user_id: session.user.id,
-            transition_id: transitionId,
-            rating,
-          });
-
-          if (insertError) {
-            console.log("Insert error:", insertError);
-            throw insertError;
-          }
-
-          // Update counts
-          if (rating > 0) {
-            setUpvotes(upvotes + 1);
-          } else {
-            setDownvotes(downvotes + 1);
-          }
-        }
-
-        setUserRating(rating);
-      }
-
-      toast({
-        title: "Rating submitted",
-        description: "Your rating has been saved successfully",
-      });
+      if (error) throw error;
     } catch (error) {
-      console.error("Error rating transition:", error);
+      console.error("Error submitting rating:", error);
       toast({
-        title: "Rating failed",
+        title: "Action failed",
         description:
           "There was an error submitting your rating. Please try again.",
         variant: "destructive",
       });
+
+      // Revert optimistic update on error
+      if (rating === 1) {
+        setUpvotes((prev) => prev - (userRating !== 1 ? 1 : 0));
+        setDownvotes((prev) => prev + (userRating === -1 ? 1 : 0));
+      } else if (rating === -1) {
+        setDownvotes((prev) => prev - (userRating !== -1 ? 1 : 0));
+        setUpvotes((prev) => prev + (userRating === 1 ? 1 : 0));
+      } else {
+        // Reset
+        if (userRating === 1) {
+          setUpvotes((prev) => prev + 1);
+        } else if (userRating === -1) {
+          setDownvotes((prev) => prev + 1);
+        }
+      }
+      setUserRating(userRating);
     } finally {
       setIsLoading(false);
     }
@@ -190,22 +125,26 @@ export default function TransitionRating({
   return (
     <div className="flex items-center gap-2">
       <Button
-        variant={userRating === 1 ? "default" : "outline"}
+        variant="ghost"
         size="sm"
-        className="gap-1"
-        disabled={isLoading}
-        onClick={() => handleRating(1)}>
-        <ThumbsUp className="h-4 w-4" />
-        <span>{upvotes}</span>
+        className={`gap-1 ${userRating === 1 ? "text-primary" : ""}`}
+        onClick={() => handleRating(1)}
+        disabled={isLoading}>
+        <ThumbsUp
+          className={`h-4 w-4 ${userRating === 1 ? "fill-current" : ""}`}
+        />
+        {upvotes}
       </Button>
       <Button
-        variant={userRating === -1 ? "default" : "outline"}
+        variant="ghost"
         size="sm"
-        className="gap-1"
-        disabled={isLoading}
-        onClick={() => handleRating(-1)}>
-        <ThumbsDown className="h-4 w-4" />
-        <span>{downvotes}</span>
+        className={`gap-1 ${userRating === -1 ? "text-red-500" : ""}`}
+        onClick={() => handleRating(-1)}
+        disabled={isLoading}>
+        <ThumbsDown
+          className={`h-4 w-4 ${userRating === -1 ? "fill-current" : ""}`}
+        />
+        {downvotes}
       </Button>
     </div>
   );
