@@ -33,19 +33,23 @@ export default function TransitionRating({
     async function fetchUserRating() {
       if (!user?.id) return;
 
-      const {data, error} = await supabase
-        .from("ratings")
-        .select("rating")
-        .eq("user_id", user.id)
-        .eq("transition_id", transitionId)
-        .single();
+      try {
+        const {data, error} = await supabase
+          .from("ratings")
+          .select("rating")
+          .eq("user_id", user.id)
+          .eq("transition_id", transitionId)
+          .maybeSingle(); // Use maybeSingle instead of single to avoid errors when no rating exists
 
-      if (error) {
-        console.error("Error fetching user rating:", error);
-        return;
+        if (error && error.code !== "PGRST116") {
+          console.error("Error fetching user rating:", error);
+          return;
+        }
+
+        setUserRating(data?.rating || null);
+      } catch (err) {
+        console.error("Unexpected error fetching rating:", err);
       }
-
-      setUserRating(data?.rating || null);
     }
 
     fetchUserRating();

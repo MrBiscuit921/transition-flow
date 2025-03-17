@@ -171,7 +171,7 @@ export default function RecommendedTransitions() {
         const downvotes = ratings.filter((r) => r.rating < 0).length;
 
         return (
-          <Link key={transition.id} href={`/transitions/${transition.id}`}>
+          <Link key={transition.id} href={`/transitions/view/${transition.id}`}>
             <Card className="overflow-hidden transition-all hover:shadow-md">
               <CardContent className="p-4">
                 <div className="grid gap-4 sm:grid-cols-[auto_1fr_auto]">

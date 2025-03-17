@@ -24,15 +24,22 @@ export default function FavoriteButton({transitionId}: FavoriteButtonProps) {
     async function checkIfFavorite() {
       if (!user?.id) return;
 
-      const {data, error} = await supabase
-        .from("favorites")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("transition_id", transitionId)
-        .single();
+      try {
+        const {data, error} = await supabase
+          .from("favorites")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("transition_id", transitionId)
+          .maybeSingle(); // Use maybeSingle instead of single to avoid errors when no favorite exists
 
-      if (data) {
-        setIsFavorite(true);
+        if (error && error.code !== "PGRST116") {
+          console.error("Error checking favorite:", error);
+          return;
+        }
+
+        setIsFavorite(!!data);
+      } catch (err) {
+        console.error("Unexpected error checking favorite:", err);
       }
     }
 

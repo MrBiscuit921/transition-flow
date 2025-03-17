@@ -1,89 +1,91 @@
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs"
-import { cookies } from "next/headers"
-import { redirect } from "next/navigation"
-import Link from "next/link"
-import { formatDistanceToNow } from "date-fns"
-import { Card, CardContent } from "@/components/ui/card"
-import { ThumbsUp } from "lucide-react"
-import CreatePlaylist from "@/components/create-playlist"
+import {createServerComponentClient} from "@supabase/auth-helpers-nextjs";
+import {cookies} from "next/headers";
+import {redirect} from "next/navigation";
+import Link from "next/link";
+import {formatDistanceToNow} from "date-fns";
+import {Card, CardContent} from "@/components/ui/card";
+import {ThumbsUp} from "lucide-react";
+import CreatePlaylist from "@/components/create-playlist";
 
-export const dynamic = "force-dynamic"
+export const dynamic = "force-dynamic";
 
 interface Transition {
-  id: string
-  song1_id: string
-  song1_name: string
-  song1_artist: string
-  song1_image: string
-  song2_id: string
-  song2_name: string
-  song2_artist: string
-  song2_image: string
-  crossfade_length: number
-  description: string
-  created_at: string
-  upvotes: number
-  downvotes: number
+  id: string;
+  song1_id: string;
+  song1_name: string;
+  song1_artist: string;
+  song1_image: string;
+  song2_id: string;
+  song2_name: string;
+  song2_artist: string;
+  song2_image: string;
+  crossfade_length: number;
+  description: string;
+  created_at: string;
+  upvotes: number;
+  downvotes: number;
 }
 
 interface TransitionWithRatings {
-  id: string
-  song1_id: string
-  song1_name: string
-  song1_artist: string
-  song1_image: string
-  song2_id: string
-  song2_name: string
-  song2_artist: string
-  song2_image: string
-  crossfade_length: number
-  description: string
-  created_at: string
-  ratings: { rating: number }[]
+  id: string;
+  song1_id: string;
+  song1_name: string;
+  song1_artist: string;
+  song1_image: string;
+  song2_id: string;
+  song2_name: string;
+  song2_artist: string;
+  song2_image: string;
+  crossfade_length: number;
+  description: string;
+  created_at: string;
+  ratings: {rating: number}[];
 }
 
 interface FavoriteItem {
-  transitions: TransitionWithRatings
+  transitions: TransitionWithRatings;
 }
 
 export default async function FavoritesPage() {
-  const supabase = createServerComponentClient({ cookies })
+  const supabase = createServerComponentClient({cookies});
 
   // Get the user's session
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: {session},
+  } = await supabase.auth.getSession();
 
   if (!session) {
-    redirect("/login")
+    redirect("/login");
   }
 
   // Get user's favorites
-  const { data: favoritesData, error } = await supabase
+  const {data: favoritesData, error} = await supabase
     .from("favorites")
-    .select(`
+    .select(
+      `
       transitions (
         *,
         ratings (
           rating
         )
       )
-    `)
-    .eq("user_id", session.user.id)
+    `
+    )
+    .eq("user_id", session.user.id);
 
   if (error) {
-    console.error("Error fetching favorites:", error)
+    console.error("Error fetching favorites:", error);
   }
 
   // Process favorites - properly cast the data
-  const favorites = (favoritesData as unknown as FavoriteItem[]) || []
+  const favorites = (favoritesData as unknown as FavoriteItem[]) || [];
 
   // Process favorites
   const processedFavorites: Transition[] = favorites.map((favorite) => {
-    const transition = favorite.transitions
-    const ratings = transition.ratings || []
-    const upvotes = ratings.filter((r) => r.rating > 0).length
-    const downvotes = ratings.filter((r) => r.rating < 0).length
+    const transition = favorite.transitions;
+    const ratings = transition.ratings || [];
+    const upvotes = ratings.filter((r) => r.rating > 0).length;
+    const downvotes = ratings.filter((r) => r.rating < 0).length;
 
     return {
       id: transition.id,
@@ -100,44 +102,64 @@ export default async function FavoritesPage() {
       created_at: transition.created_at,
       upvotes,
       downvotes,
-    }
-  })
+    };
+  });
 
   return (
     <div className="container px-4 py-8 md:px-6">
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Your Favorites</h1>
-            <p className="text-muted-foreground">Transitions you've saved for later</p>
+            <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
+              Your Favorites
+            </h1>
+            <p className="text-muted-foreground">
+              Transitions you've saved for later
+            </p>
           </div>
 
-          {processedFavorites.length > 0 && <CreatePlaylist transitions={processedFavorites} />}
+          {processedFavorites.length > 0 && (
+            <CreatePlaylist transitions={processedFavorites} />
+          )}
         </div>
 
         {processedFavorites.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-muted-foreground">You haven't added any transitions to your favorites yet.</p>
-            <Link href="/browse" className="text-primary hover:underline mt-2 inline-block">
+            <p className="text-muted-foreground">
+              You haven't added any transitions to your favorites yet.
+            </p>
+            <Link
+              href="/browse"
+              className="text-primary hover:underline mt-2 inline-block">
               Browse transitions
             </Link>
           </div>
         ) : (
           <div className="grid gap-4">
             {processedFavorites.map((transition) => (
-              <Link key={transition.id} href={`/transitions/${transition.id}`}>
+              <Link
+                key={transition.id}
+                href={`/transitions/view/${transition.id}`}>
                 <Card className="overflow-hidden transition-all hover:shadow-md">
                   <CardContent className="p-4">
                     <div className="grid gap-4 sm:grid-cols-[auto_1fr_auto]">
                       <div className="flex items-center gap-2">
                         <img
-                          src={transition.song1_image || "/placeholder.svg?height=64&width=64"}
+                          src={
+                            transition.song1_image ||
+                            "/placeholder.svg?height=64&width=64"
+                          }
                           alt={transition.song1_name}
                           className="h-16 w-16 rounded object-cover"
                         />
-                        <div className="text-center text-sm font-medium">to</div>
+                        <div className="text-center text-sm font-medium">
+                          to
+                        </div>
                         <img
-                          src={transition.song2_image || "/placeholder.svg?height=64&width=64"}
+                          src={
+                            transition.song2_image ||
+                            "/placeholder.svg?height=64&width=64"
+                          }
                           alt={transition.song2_name}
                           className="h-16 w-16 rounded object-cover"
                         />
@@ -145,18 +167,29 @@ export default async function FavoritesPage() {
 
                       <div className="flex flex-col justify-center">
                         <div className="flex items-baseline gap-2">
-                          <h3 className="font-medium">{transition.song1_name}</h3>
-                          <p className="text-sm text-muted-foreground">by {transition.song1_artist}</p>
+                          <h3 className="font-medium">
+                            {transition.song1_name}
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            by {transition.song1_artist}
+                          </p>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <span>to</span>
                           <div className="flex items-baseline gap-2">
-                            <h3 className="font-medium text-foreground">{transition.song2_name}</h3>
-                            <p className="text-sm">by {transition.song2_artist}</p>
+                            <h3 className="font-medium text-foreground">
+                              {transition.song2_name}
+                            </h3>
+                            <p className="text-sm">
+                              by {transition.song2_artist}
+                            </p>
                           </div>
                         </div>
                         <div className="mt-2 text-xs text-muted-foreground">
-                          {formatDistanceToNow(new Date(transition.created_at), { addSuffix: true })}
+                          {formatDistanceToNow(
+                            new Date(transition.created_at),
+                            {addSuffix: true}
+                          )}
                         </div>
                       </div>
 
@@ -175,6 +208,5 @@ export default async function FavoritesPage() {
         )}
       </div>
     </div>
-  )
+  );
 }
-

@@ -48,7 +48,7 @@ export default async function FeaturedTransitions() {
         const score = upvotes - downvotes;
 
         return (
-          <Link key={transition.id} href={`/transitions/${transition.id}`}>
+          <Link key={transition.id} href={`/transitions/view/${transition.id}`}>
             <Card className="h-full overflow-hidden transition-all hover:shadow-md">
               <CardContent className="p-0">
                 <div className="flex items-center gap-2 bg-muted p-3">
