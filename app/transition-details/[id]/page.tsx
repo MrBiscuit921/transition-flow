@@ -71,7 +71,7 @@ export default async function TransitionDetailPage({
     const baseUrl = process.env.VERCEL_URL
       ? `https://${process.env.VERCEL_URL}`
       : "http://localhost:3000";
-    const shareUrl = `${baseUrl}/transitions/view/${transition.id}`;
+    const shareUrl = `${baseUrl}/transition-details/${transition.id}`;
 
     return (
       <div className="container px-4 py-8 md:px-6">
@@ -116,7 +116,7 @@ export default async function TransitionDetailPage({
                   </div>
                 </div>
 
-                {/* Transition visualization */}
+                {/* Transition visualization - FIXED CENTERING */}
                 <div className="flex flex-col items-center gap-6 rounded-lg bg-muted p-6 sm:flex-row sm:justify-center">
                   <div className="flex flex-col items-center gap-2 text-center">
                     <img
