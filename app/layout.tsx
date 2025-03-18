@@ -4,7 +4,9 @@ import {Inter} from "next/font/google";
 import "./globals.css";
 import {ThemeProvider} from "@/components/theme-provider";
 import {SupabaseProvider} from "@/components/supabase-provider";
-import {Toaster} from "@/components/ui/toaster";
+import { Toaster } from "@/components/ui/toaster";
+import Header  from "@/components/header";
+import Footer from "@/components/footer";
 
 const inter = Inter({subsets: ["latin"]});
 
@@ -57,13 +59,18 @@ export const metadata: Metadata = {
 export default function RootLayout({children}: {children: React.ReactNode}) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <link rel="canonical" href="https://transitionflow.com" />
-      </head>
-      <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <body className={`${inter.className} min-h-screen bg-background`}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange>
           <SupabaseProvider>
-            {children}
+            <div className="flex min-h-screen flex-col">
+              <Header />
+              <main className="flex-1">{children}</main>
+              <Footer />
+            </div>
             <Toaster />
           </SupabaseProvider>
         </ThemeProvider>
