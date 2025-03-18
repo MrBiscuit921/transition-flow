@@ -177,8 +177,8 @@ export default async function TransitionDetailPage({
           }}
         />
 
-        <div className="container px-4 py-8 md:px-6">
-          <div className="mx-auto max-w-3xl">
+        <div className="container px-4 py-8 md:px-6 items-center">
+          <div className="mx-48 max-w-3xl">
             <Button asChild variant="ghost" className="mb-6 -ml-2 gap-1">
               <Link href="/browse">
                 <ArrowLeft className="h-4 w-4" /> Back to transitions
@@ -187,7 +187,7 @@ export default async function TransitionDetailPage({
 
             <Card className="w-[125%]">
               {" "}
-              {/* w-[125%] */}
+              {/*  */}
               <CardContent className="p-6">
                 <div className="flex flex-col gap-6">
                   {/* Transition header */}
@@ -221,8 +221,7 @@ export default async function TransitionDetailPage({
                     </div>
                   </div>
                   {/* Transition visualization */}
-                  {/* w-[50%] */}
-                  <div className="flex flex-col items-center justify-center gap-4 rounded-lg bg-muted p-6 sm:flex-row ">
+                  <div className="flex flex-col items-center justify-center gap-4 rounded-lg bg-muted p-6 sm:flex-row w-[50%] mx-60">
                     <div className="flex flex-col items-center gap-2 text-center">
                       <img
                         src={
