@@ -77,11 +77,6 @@ export default async function TransitionDetailPage({
             userData.user.user_metadata?.username ||
             userData.user.email ||
             "Anonymous";
-
-          console.log(userData.user.user_metadata?.name);
-          console.log(userData.user.user_metadata?.full_name);
-          console.log(userData.user.user_metadata?.username);
-          console.log(userData.user.email);
         }
       }
     }

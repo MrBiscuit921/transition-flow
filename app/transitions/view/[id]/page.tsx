@@ -185,7 +185,9 @@ export default async function TransitionDetailPage({
               </Link>
             </Button>
 
-            <Card>
+            <Card className="w-[125%]">
+              {" "}
+              {/* w-[125%] */}
               <CardContent className="p-6">
                 <div className="flex flex-col gap-6">
                   {/* Transition header */}
@@ -218,9 +220,9 @@ export default async function TransitionDetailPage({
                       />
                     </div>
                   </div>
-
                   {/* Transition visualization */}
-                  <div className="flex flex-col items-center gap-4 rounded-lg bg-muted p-6 sm:flex-row">
+                  {/* w-[50%] */}
+                  <div className="flex flex-col items-center justify-center gap-4 rounded-lg bg-muted p-6 sm:flex-row ">
                     <div className="flex flex-col items-center gap-2 text-center">
                       <img
                         src={
