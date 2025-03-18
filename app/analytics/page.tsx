@@ -100,7 +100,13 @@ export default function AnalyticsPage() {
           )
           .eq("user_id", user.id);
 
-        if (transitionsError) throw transitionsError;
+        if (transitionsError) {
+          console.error(
+            "Error fetching transitions for analytics:",
+            transitionsError
+          );
+          return; // Exit early but don't throw to prevent crashing
+        }
 
         // Calculate stats
         let totalViews = 0;

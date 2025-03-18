@@ -26,15 +26,6 @@ interface TransitionWithRatings {
   ratings: TransitionRating[];
 }
 
-interface UserRating {
-  rating: number;
-  transitions: {
-    song1_artist: string;
-    song2_artist: string;
-    id: string;
-  };
-}
-
 export default function RecommendedTransitions() {
   const {user} = useSupabase();
   const supabase = createClientComponentClient();
@@ -42,15 +33,39 @@ export default function RecommendedTransitions() {
     TransitionWithRatings[]
   >([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
 
     async function fetchRecommendations() {
       setIsLoading(true);
+      setError(null);
 
       try {
         if (!user?.id) return;
+
+        console.log("Fetching recommendations for user:", user.id);
+
+        // First, get some recent transitions as a fallback
+        const {data: recentTransitions, error: recentError} = await supabase
+          .from("transitions")
+          .select(
+            `
+            *,
+            ratings (
+              id,
+              rating
+            )
+          `
+          )
+          .order("created_at", {ascending: false})
+          .limit(6);
+
+        if (recentError) {
+          console.error("Error fetching recent transitions:", recentError);
+          throw recentError;
+        }
 
         // Get user's rated transitions to find their preferences
         const {data: userRatingsData, error: ratingsError} = await supabase
@@ -58,71 +73,118 @@ export default function RecommendedTransitions() {
           .select(
             `
             rating,
+            transition_id,
             transitions (
               song1_artist,
-              song2_artist,
-              id
+              song2_artist
             )
           `
           )
           .eq("user_id", user.id)
           .eq("rating", 1); // Only consider upvoted transitions
 
-        if (ratingsError) throw ratingsError;
+        if (ratingsError) {
+          console.error("Error fetching user ratings:", ratingsError);
+          // Don't throw, just use recent transitions
+          setRecommendations(recentTransitions);
+          return;
+        }
+
+        console.log("User ratings data:", userRatingsData);
+
+        // If user hasn't rated anything, just show recent transitions
+        if (!userRatingsData || userRatingsData.length === 0) {
+          console.log("No user ratings found, showing recent transitions");
+          setRecommendations(recentTransitions);
+          return;
+        }
 
         // Extract artists the user likes
         const likedArtists = new Set<string>();
-        const userRatings = (userRatingsData as any[]) || [];
-
-        userRatings.forEach((rating) => {
+        userRatingsData.forEach((rating: any) => {
           if (rating.transitions) {
-            likedArtists.add(rating.transitions.song1_artist);
-            likedArtists.add(rating.transitions.song2_artist);
+            if (rating.transitions.song1_artist)
+              likedArtists.add(rating.transitions.song1_artist);
+            if (rating.transitions.song2_artist)
+              likedArtists.add(rating.transitions.song2_artist);
           }
         });
 
-        // Get transitions with those artists that the user hasn't rated yet
-        if (likedArtists.size > 0) {
-          const likedArtistsArray = Array.from(likedArtists);
+        console.log("Liked artists:", Array.from(likedArtists));
 
-          // Find transitions with artists the user likes
-          const {data: recommendedTransitions, error: recommendError} =
-            await supabase
-              .from("transitions")
-              .select(
-                `
-              *,
-              ratings (
-                id,
-                rating
-              )
-            `
-              )
-              .or(
-                `song1_artist.in.(${likedArtistsArray
-                  .map((a) => `"${a}"`)
-                  .join(",")}),song2_artist.in.(${likedArtistsArray
-                  .map((a) => `"${a}"`)
-                  .join(",")})`
-              )
-              .order("created_at", {ascending: false})
-              .limit(6);
-
-          if (recommendError) throw recommendError;
-
-          // Filter out transitions the user has already rated
-          const ratedTransitionIds = new Set(
-            userRatings.map((r) => r.transitions?.id).filter(Boolean)
-          );
-
-          const filteredRecommendations = recommendedTransitions.filter(
-            (t: TransitionWithRatings) => !ratedTransitionIds.has(t.id)
-          );
-
-          setRecommendations(filteredRecommendations);
+        // If no liked artists found, use recent transitions
+        if (likedArtists.size === 0) {
+          console.log("No liked artists found, showing recent transitions");
+          setRecommendations(recentTransitions);
+          return;
         }
-      } catch (error) {
+
+        // Get transitions with those artists that the user hasn't rated yet
+        const likedArtistsArray = Array.from(likedArtists);
+
+        // Create a filter condition for artists
+        let artistFilter = "";
+        likedArtistsArray.forEach((artist, index) => {
+          if (index > 0) artistFilter += ",";
+          artistFilter += `song1_artist.ilike.%${artist}%,song2_artist.ilike.%${artist}%`;
+        });
+
+        console.log("Artist filter:", artistFilter);
+
+        const {data: recommendedTransitions, error: recommendError} =
+          await supabase
+            .from("transitions")
+            .select(
+              `
+            *,
+            ratings (
+              id,
+              rating
+            )
+          `
+            )
+            .or(artistFilter)
+            .order("created_at", {ascending: false})
+            .limit(6);
+
+        if (recommendError) {
+          console.error(
+            "Error fetching recommended transitions:",
+            recommendError
+          );
+          // Fall back to recent transitions
+          setRecommendations(recentTransitions);
+          return;
+        }
+
+        console.log("Recommended transitions:", recommendedTransitions);
+
+        // Get the IDs of transitions the user has already rated
+        const ratedTransitionIds = new Set(
+          userRatingsData.map((r: any) => r.transition_id).filter(Boolean)
+        );
+
+        console.log("Rated transition IDs:", Array.from(ratedTransitionIds));
+
+        // Filter out transitions the user has already rated
+        const filteredRecommendations = recommendedTransitions.filter(
+          (t: TransitionWithRatings) => !ratedTransitionIds.has(t.id)
+        );
+
+        console.log("Filtered recommendations:", filteredRecommendations);
+
+        // If we have recommendations, use them; otherwise, fall back to recent transitions
+        if (filteredRecommendations.length > 0) {
+          setRecommendations(filteredRecommendations);
+        } else {
+          console.log(
+            "No filtered recommendations, showing recent transitions"
+          );
+          setRecommendations(recentTransitions);
+        }
+      } catch (error: any) {
         console.error("Error fetching recommendations:", error);
+        setError(error.message || "Failed to load recommendations");
       } finally {
         setIsLoading(false);
       }
@@ -148,6 +210,15 @@ export default function RecommendedTransitions() {
             </CardContent>
           </Card>
         ))}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-4">
+        <p className="text-red-500">Error: {error}</p>
+        <p className="text-muted-foreground mt-2">Please try again later.</p>
       </div>
     );
   }

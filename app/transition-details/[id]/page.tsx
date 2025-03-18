@@ -56,7 +56,8 @@ export default async function TransitionDetailPage({
     // Fetch user data from profiles table
     let username = "Anonymous";
     if (transition.user_id) {
-      const {data: profileData} = await supabase
+      // First try to get from profiles table
+      const {data: profileData, error: profileError} = await supabase
         .from("profiles")
         .select("username")
         .eq("id", transition.user_id)
@@ -64,6 +65,24 @@ export default async function TransitionDetailPage({
 
       if (profileData?.username) {
         username = profileData.username;
+      } else {
+        // If not found in profiles, try to get from auth
+        const {data: userData, error: userError} =
+          await supabase.auth.admin.getUserById(transition.user_id);
+
+        if (userData?.user) {
+          username =
+            userData.user.user_metadata?.name ||
+            userData.user.user_metadata?.full_name ||
+            userData.user.user_metadata?.username ||
+            userData.user.email ||
+            "Anonymous";
+
+          console.log(userData.user.user_metadata?.name);
+          console.log(userData.user.user_metadata?.full_name);
+          console.log(userData.user.user_metadata?.username);
+          console.log(userData.user.email);
+        }
       }
     }
 
@@ -116,7 +135,7 @@ export default async function TransitionDetailPage({
                   </div>
                 </div>
 
-                {/* Transition visualization - FIXED CENTERING */}
+                {/* Transition visualization */}
                 <div className="flex flex-col items-center gap-6 rounded-lg bg-muted p-6 sm:flex-row sm:justify-center">
                   <div className="flex flex-col items-center gap-2 text-center">
                     <img
