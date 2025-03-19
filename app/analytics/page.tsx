@@ -87,19 +87,10 @@ export default function AnalyticsPage() {
 
         console.log("Starting analytics fetch for user:", user.id);
 
-        // Check the structure of the views table
-        const {data: viewsTableInfo, error: viewsTableError} = await supabase
-          .from("views")
-          .select("*")
-          .limit(1);
-
-        console.log("Views table sample:", viewsTableInfo);
-        console.log("Views table error:", viewsTableError);
-
-        // Step 1: Get basic transition data first (without joins)
+        // Step 1: Get basic transition data including views_count
         const {data: transitions, error: transitionsError} = await supabase
           .from("transitions")
-          .select("id, created_at, song1_name, song2_name")
+          .select("id, created_at, song1_name, song2_name, views_count")
           .eq("user_id", user.id);
 
         if (transitionsError) {
@@ -158,64 +149,18 @@ export default function AnalyticsPage() {
             });
           }
 
-          // Step 3: Get view counts (simplified)
-          const {data: viewsData, error: viewsError} = await supabase
-            .from("views")
-            .select("transition_id, id")
-            .in("transition_id", transitionIds);
-
-          if (viewsError) {
-            console.error("Error fetching views:", viewsError);
-            // Continue with partial data
-          }
-
-          // Log the raw views data to help diagnose the issue
-          console.log("Views data:", viewsData);
-
-          // Count views per transition
-          const viewsByTransition: Record<string, number> = {};
+          // Calculate total views from views_count
           let totalViews = 0;
+          const viewsByTransition: Record<string, number> = {};
 
-          if (viewsData && viewsData.length > 0) {
-            viewsData.forEach((view) => {
-              if (!viewsByTransition[view.transition_id]) {
-                viewsByTransition[view.transition_id] = 0;
-              }
-              viewsByTransition[view.transition_id]++;
-              totalViews++;
-            });
-            console.log("Processed views by transition:", viewsByTransition);
-            console.log("Total views:", totalViews);
-          } else {
-            console.log("No views data found in the views table");
+          transitions.forEach((transition) => {
+            const views = transition.views_count || 0;
+            viewsByTransition[transition.id] = views;
+            totalViews += views;
+          });
 
-            // As a fallback, let's check if views might be stored differently
-            // For example, they might be a count in the transitions table
-            // Update the fallback check for views in the transitions table
-
-            // Instead of looking for a views_count column that doesn't exist,
-            // let's estimate views based on ratings as a fallback
-            console.log("Estimating views based on ratings as a fallback");
-            transitionIds.forEach((id) => {
-              // Assume each transition has been viewed at least once for each rating
-              // plus some additional views
-              const ratings = ratingsByTransition[id] || {
-                upvotes: 0,
-                downvotes: 0,
-              };
-              const totalRatings = ratings.upvotes + ratings.downvotes;
-
-              // Estimate: Each transition with ratings has been viewed at least 3x the number of ratings
-              // (people often view without rating)
-              const estimatedViews = totalRatings > 0 ? totalRatings * 3 : 1;
-
-              viewsByTransition[id] = estimatedViews;
-              totalViews += estimatedViews;
-            });
-
-            console.log("Estimated views by transition:", viewsByTransition);
-            console.log("Estimated total views:", totalViews);
-          }
+          console.log("Views by transition:", viewsByTransition);
+          console.log("Total views:", totalViews);
 
           // Process transitions for monthly data and top transitions
           transitions.forEach((transition) => {

@@ -48,6 +48,35 @@ export default async function TransitionDetailPage({
       return notFound();
     }
 
+    // Record view by incrementing views_count
+    try {
+      // First approach: Use RPC to call the function we created
+      const {error: viewError} = await supabase.rpc(
+        "increment_transition_views",
+        {transition_id: params.id}
+      );
+
+      // Fallback approach if RPC fails: Direct update
+      if (viewError) {
+        console.error("Error recording view with RPC:", viewError);
+
+        const {error: updateError} = await supabase
+          .from("transitions")
+          .update({views_count: (transition.views_count || 0) + 1})
+          .eq("id", params.id);
+
+        if (updateError) {
+          console.error(
+            "Error recording view with direct update:",
+            updateError
+          );
+        }
+      }
+    } catch (viewError) {
+      // Silently fail if view tracking fails
+      console.error("Error tracking view:", viewError);
+    }
+
     // Calculate ratings
     const ratings = transition.ratings || [];
     const upvotes = ratings.filter((r: any) => r.rating > 0).length;
@@ -131,7 +160,7 @@ export default async function TransitionDetailPage({
                 </div>
 
                 {/* Transition visualization */}
-                <div className="flex flex-col items-center gap-6 rounded-lg bg-muted p-6 sm:flex-row sm:justify-center">
+                <div className="flex flex-col items-center gap-4 rounded-lg bg-muted p-6 sm:flex-row">
                   <div className="flex flex-col items-center gap-2 text-center">
                     <img
                       src={

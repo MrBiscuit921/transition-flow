@@ -95,6 +95,35 @@ export default async function TransitionDetailPage({
       return notFound();
     }
 
+    // Record view by incrementing views_count
+    try {
+      // First approach: Use RPC to call the function we created
+      const {error: viewError} = await supabase.rpc(
+        "increment_transition_views",
+        {transition_id: params.id}
+      );
+
+      // Fallback approach if RPC fails: Direct update
+      if (viewError) {
+        console.error("Error recording view with RPC:", viewError);
+
+        const {error: updateError} = await supabase
+          .from("transitions")
+          .update({views_count: (transition.views_count || 0) + 1})
+          .eq("id", params.id);
+
+        if (updateError) {
+          console.error(
+            "Error recording view with direct update:",
+            updateError
+          );
+        }
+      }
+    } catch (viewError) {
+      // Silently fail if view tracking fails
+      console.error("Error tracking view:", viewError);
+    }
+
     // Calculate ratings
     const ratings = transition.ratings || [];
     const upvotes = ratings.filter((r: any) => r.rating > 0).length;
@@ -226,7 +255,8 @@ export default async function TransitionDetailPage({
                       <img
                         src={
                           transition.song1_image ||
-                          "/placeholder.svg?height=80&width=80"
+                          "/placeholder.svg?height=80&width=80" ||
+                          "/placeholder.svg"
                         }
                         alt={`${transition.song1_name} by ${transition.song1_artist}`}
                         className="h-20 w-20 rounded-md object-cover"
@@ -254,7 +284,8 @@ export default async function TransitionDetailPage({
                       <img
                         src={
                           transition.song2_image ||
-                          "/placeholder.svg?height=80&width=80"
+                          "/placeholder.svg?height=80&width=80" ||
+                          "/placeholder.svg"
                         }
                         alt={`${transition.song2_name} by ${transition.song2_artist}`}
                         className="h-20 w-20 rounded-md object-cover"
