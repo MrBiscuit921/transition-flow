@@ -81,31 +81,45 @@ export default function AnalyticsPage() {
       try {
         if (!user?.id) return;
 
-        // Get user's transitions
+        console.log("Fetching analytics for user:", user.id);
+
+        // Get user's transitions with better error handling
         const {data: transitions, error: transitionsError} = await supabase
           .from("transitions")
           .select(
             `
-            *,
+            id,
+            created_at,
+            song1_name,
+            song2_name,
             ratings (
               id,
-              rating,
-              created_at
+              rating
             ),
             views (
-              id,
-              created_at
+              id
             )
           `
           )
-          .eq("user_id", user.id);
+          .eq("user_id", user.id)
+          .order("created_at", {ascending: false});
 
         if (transitionsError) {
           console.error(
             "Error fetching transitions for analytics:",
             transitionsError
           );
-          return; // Exit early but don't throw to prevent crashing
+          setStats({
+            totalTransitions: 0,
+            totalViews: 0,
+            totalUpvotes: 0,
+            totalDownvotes: 0,
+            transitionsByMonth: [],
+            ratingDistribution: [],
+            topTransitions: [],
+          });
+          setIsLoading(false);
+          return;
         }
 
         // Calculate stats
@@ -181,6 +195,7 @@ export default function AnalyticsPage() {
         });
       } catch (error) {
         console.error("Error fetching analytics:", error);
+        // Don't rethrow, just log and continue with empty state
       } finally {
         setIsLoading(false);
       }
