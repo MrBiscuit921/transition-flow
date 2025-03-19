@@ -92,9 +92,7 @@ export default async function TransitionDetailPageDirect({
     }
 
     // Get the current URL for sharing
-    const baseUrl = process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : "http://localhost:3000";
+    const baseUrl = getBaseUrl()
     const shareUrl = `${baseUrl}/transitions/view/${transition.id}`;
 
     return (

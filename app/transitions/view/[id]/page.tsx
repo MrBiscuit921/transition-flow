@@ -10,7 +10,8 @@ import {ArrowLeft, Clock, Music} from "lucide-react";
 import TransitionRating from "@/components/transition-rating";
 import FavoriteButton from "@/components/favorite-button";
 import ShareTransition from "@/components/share-transition";
-import {Badge} from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
+import { getBaseUrl } from "@/lib/get-base-url"
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
@@ -158,9 +159,7 @@ export default async function TransitionDetailPage({
     }
 
     // Get the current URL for sharing
-    const baseUrl = process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : "http://localhost:3000";
+    const baseUrl = getBaseUrl()
     const shareUrl = `${baseUrl}/transitions/view/${transition.id}`;
 
     return (
