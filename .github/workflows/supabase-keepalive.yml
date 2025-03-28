@@ -3,7 +3,7 @@ name: Supabase Keep-Alive
 on:
   schedule:
     # Run every 6 days to prevent the 7-day inactivity pause
-    - cron: '0 0 */6 * *'
+    - cron: "0 0 */6 * *"
   workflow_dispatch: # Allow manual triggering
 
 jobs:
@@ -12,17 +12,17 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '18'
-          
+          node-version: "18"
+
       - name: Install dependencies
         run: npm install @supabase/supabase-js
-        
+
       - name: Run keep-alive script
-        run: node scripts/keep-alive.js
+        run: node scripts/keep-alive.ts
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
