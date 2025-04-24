@@ -9,68 +9,25 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-          
-      - name: Install dependencies
-        run: npm install axios
-        
-      - name: Run keep-alive script
+      - name: Network diagnostics
         run: |
-          node -e "
-          const axios = require('axios');
-
-          async function keepAlive() {
-            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-            const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-            
-            if (!supabaseUrl || !supabaseKey) {
-              console.error('Missing Supabase credentials');
-              process.exit(1);
-            }
-            
-            console.log('Running Supabase keep-alive...');
-            console.log('Supabase URL:', supabaseUrl);
-            
-            try {
-              // Make a simple request to the Supabase REST API
-              const response = await axios({
-                method: 'GET',
-                url: \`\${supabaseUrl}/rest/v1/transitions?select=id&limit=1\`,
-                headers: {
-                  'apikey': supabaseKey,
-                  'Authorization': \`Bearer \${supabaseKey}\`
-                }
-              });
-              
-              console.log('Supabase keep-alive successful:', new Date().toISOString());
-              console.log('Status code:', response.status);
-              console.log('Retrieved data:', JSON.stringify(response.data));
-              process.exit(0);
-            } catch (error) {
-              console.error('Supabase keep-alive failed:');
-              if (error.response) {
-                // The request was made and the server responded with a status code
-                // that falls out of the range of 2xx
-                console.error('Response status:', error.response.status);
-                console.error('Response data:', error.response.data);
-                console.error('Response headers:', error.response.headers);
-              } else if (error.request) {
-                // The request was made but no response was received
-                console.error('No response received:', error.request);
-              } else {
-                // Something happened in setting up the request that triggered an Error
-                console.error('Error message:', error.message);
-              }
-              console.error('Error config:', error.config);
-              process.exit(1);
-            }
-          }
-
-          keepAlive();
-          "
+          echo "Running network diagnostics..."
+          echo "DNS lookup for Supabase domain:"
+          nslookup qchqadqmxltihtmxjmxo.supabase.co || echo "DNS lookup failed"
+          
+          echo "Checking connectivity with ping:"
+          ping -c 4 qchqadqmxltihtmxjmxo.supabase.co || echo "Ping failed"
+          
+          echo "Checking HTTPS connectivity with curl:"
+          curl -v https://qchqadqmxltihtmxjmxo.supabase.co/rest/v1/ || echo "Curl failed"
+      
+      - name: Ping Supabase with curl
+        run: |
+          echo "Pinging Supabase with curl..."
+          curl -v -X GET "$SUPABASE_URL/rest/v1/transitions?select=id&limit=1" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY"
+          echo "Ping completed at $(date)"
         env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
