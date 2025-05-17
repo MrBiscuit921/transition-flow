@@ -9,51 +9,25 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-          
-      - name: Install dependencies
-        run: npm install @supabase/supabase-js
-        
-      - name: Run keep-alive script
+      - name: Network diagnostics
         run: |
-          node -e "
-          const { createClient } = require('@supabase/supabase-js');
-
-          async function keepAlive() {
-            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-            const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-            
-            if (!supabaseUrl || !supabaseServiceKey) {
-              console.error('Missing Supabase credentials');
-              process.exit(1);
-            }
-            
-            console.log('Running Supabase keep-alive...');
-            
-            const supabase = createClient(supabaseUrl, supabaseServiceKey);
-            
-            try {
-              const { data, error } = await supabase
-                .from('transitions')
-                .select('id')
-                .limit(1);
-                
-              if (error) throw error;
-              
-              console.log('Supabase keep-alive successful:', new Date().toISOString());
-              console.log('Retrieved data:', data);
-              process.exit(0);
-            } catch (error) {
-              console.error('Supabase keep-alive failed:', error);
-              process.exit(1);
-            }
-          }
-
-          keepAlive();
-          "
+          echo "Running network diagnostics..."
+          echo "DNS lookup for Supabase domain:"
+          nslookup qchqadqmxltihtmxjmxo.supabase.co || echo "DNS lookup failed"
+          
+          echo "Checking connectivity with ping:"
+          ping -c 4 qchqadqmxltihtmxjmxo.supabase.co || echo "Ping failed"
+          
+          echo "Checking HTTPS connectivity with curl:"
+          curl -v https://qchqadqmxltihtmxjmxo.supabase.co/rest/v1/ || echo "Curl failed"
+      
+      - name: Ping Supabase with curl
+        run: |
+          echo "Pinging Supabase with curl..."
+          curl -v -X GET "$SUPABASE_URL/rest/v1/transitions?select=id&limit=1" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY"
+          echo "Ping completed at $(date)"
         env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
