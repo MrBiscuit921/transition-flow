@@ -67,12 +67,6 @@ export function SupabaseProvider({
       setSession(session);
       setUser(session?.user || null);
       setLoading(false);
-
-      if (event === "SIGNED_IN" && !initialSession) {
-        window.location.reload();
-      } else if (event === "SIGNED_OUT") {
-        window.location.reload();
-      }
     });
 
     return () => {
