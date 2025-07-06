@@ -68,8 +68,9 @@ export function SupabaseProvider({
       setUser(session?.user || null);
       setLoading(false);
 
-      // Refresh the page on sign in/out to ensure server and client are in sync
-      if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
+      if (event === "SIGNED_IN" && !initialSession) {
+        window.location.reload();
+      } else if (event === "SIGNED_OUT") {
         window.location.reload();
       }
     });
