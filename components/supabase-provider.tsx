@@ -1,7 +1,6 @@
 "use client";
 
 import type React from "react";
-
 import {createContext, useContext, useState, useEffect} from "react";
 import type {Session, User} from "@supabase/auth-helpers-nextjs";
 import {createClientComponentClient} from "@supabase/auth-helpers-nextjs";
@@ -10,6 +9,7 @@ interface SupabaseContextType {
   supabase: any;
   session: Session | null;
   user: User | null;
+  loading: boolean;
 }
 
 const SupabaseContext = createContext<SupabaseContextType | undefined>(
@@ -18,59 +18,69 @@ const SupabaseContext = createContext<SupabaseContextType | undefined>(
 
 interface SupabaseProviderProps {
   children: React.ReactNode;
+  initialSession?: Session | null;
 }
 
-export function SupabaseProvider({children}: SupabaseProviderProps) {
+export function SupabaseProvider({
+  children,
+  initialSession,
+}: SupabaseProviderProps) {
   const [supabase] = useState(() => createClientComponentClient());
-  const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(
+    initialSession || null
+  );
+  const [user, setUser] = useState<User | null>(initialSession?.user || null);
+  const [loading, setLoading] = useState(!initialSession);
 
   useEffect(() => {
-    // Update the getInitialSession function to use getUser for authentication verification
-    async function getInitialSession() {
-      // Get session data
-      const {
-        data: {session},
-      } = await supabase.auth.getSession();
-
-      setSession(session);
-
-      // Get authenticated user data directly from Auth server
-      if (session) {
-        const {
-          data: {user: authenticatedUser},
-        } = await supabase.auth.getUser();
-        setUser(authenticatedUser);
+    const getInitialSession = async () => {
+      if (initialSession) {
+        setSession(initialSession);
+        setUser(initialSession.user);
+        setLoading(false);
+        return;
       }
 
-      // Set up auth state change listener
-      const {
-        data: {subscription},
-      } = supabase.auth.onAuthStateChange(async (_event, session) => {
-        setSession(session);
+      try {
+        const {
+          data: {session: currentSession},
+        } = await supabase.auth.getSession();
 
-        if (session) {
-          // Always verify user with Auth server on state change
-          const {
-            data: {user: authenticatedUser},
-          } = await supabase.auth.getUser();
-          setUser(authenticatedUser);
-        } else {
-          setUser(null);
-        }
-      });
-
-      // Clean up subscription on unmount
-      return () => {
-        subscription.unsubscribe();
-      };
-    }
+        setSession(currentSession);
+        setUser(currentSession?.user || null);
+      } catch (error) {
+        console.error("Error getting session:", error);
+        setSession(null);
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
 
     getInitialSession();
-  }, [supabase]);
+
+    const {
+      data: {subscription},
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("Auth state changed:", event, session?.user?.id);
+
+      setSession(session);
+      setUser(session?.user || null);
+      setLoading(false);
+
+      // Refresh the page on sign in/out to ensure server and client are in sync
+      if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
+        window.location.reload();
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [supabase, initialSession]);
 
   return (
-    <SupabaseContext.Provider value={{supabase, session, user}}>
+    <SupabaseContext.Provider value={{supabase, session, user, loading}}>
       {children}
     </SupabaseContext.Provider>
   );

@@ -1,5 +1,4 @@
-// app/auth/callback/route.ts
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 import {createRouteHandlerClient} from "@supabase/auth-helpers-nextjs";
 import {cookies} from "next/headers";
@@ -8,6 +7,7 @@ import {NextResponse} from "next/server";
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
+  const redirectTo = requestUrl.searchParams.get("redirectTo") || "/";
 
   // Check for error parameters that might be returned from OAuth provider
   const error = requestUrl.searchParams.get("error");
@@ -26,7 +26,6 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = createRouteHandlerClient({cookies});
-
     try {
       await supabase.auth.exchangeCodeForSession(code);
     } catch (err) {
@@ -38,5 +37,5 @@ export async function GET(request: Request) {
   }
 
   // URL to redirect to after sign in process completes
-  return NextResponse.redirect(requestUrl.origin);
+  return NextResponse.redirect(`${requestUrl.origin}${redirectTo}`);
 }
